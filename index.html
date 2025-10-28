@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Goal Garden 2.4 – Fejedelem Edition 🌱</title>
+<style>
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #f8f8f8;
+  margin: 0;
+  padding: 0;
+  color: #222;
+}
+header {
+  background: white;
+  border-bottom: 1px solid #ddd;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#app { max-width: 1100px; margin: 20px auto; padding: 10px; }
+button {
+  background: #222;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+button:hover { background: #444; }
+input[type=text], input[type=number], textarea, select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.card {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  margin: 10px 0;
+  padding: 15px 20px;
+  position: relative;
+}
+.card h3 { margin: 0; }
+.card p { margin: 5px 0 10px; color:#444; }
+.owner-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.owner-tabs button {
+  flex: 1;
+  background: #eee;
+  color: #222;
+}
+.owner-tabs button.active {
+  background: #222;
+  color: white;
+}
+.goal-owner {
+  font-size: 12px;
+  color: #666;
+  background: #f4f4f4;
+  padding: 3px 6px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 5px;
+}
+.subtask { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  gap: 8px; 
+  margin-bottom: 6px;
+}
+.subtask span { flex: 1; }
+.progress { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.progress-inner { height: 100%; background: #16a34a; transition: width 0.3s; }
+.icons { position: absolute; top: 10px; right: 10px; display:flex; gap:5px; }
+.icons button { background: none; border:none; cursor:pointer; }
+.icons button:hover { transform: scale(1.2); }
+
+#newGoalForm, #rewardForm {
+  background: white; border-radius: 12px; padding: 15px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.05); margin-bottom:20px;
+}
+.stats {
+  display: flex; gap: 10px; justify-content: space-between;
+  background: white; border-radius: 12px; padding: 10px 15px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  margin-bottom: 15px;
+}
+.reward-card {
+  background:white; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);
+  padding:10px 15px; margin-bottom:10px;
+}
+.reward-card h4{margin:0;}
+.reward-card small{color:#666;}
+.log {
+  background:white; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,0.1);
+  padding:10px 15px; margin-top:20px;
+  max-height:200px; overflow:auto;
+  font-size:13px;
+}
+.subgoal-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+  align-items: center;
+}
+.subgoal-row input[type=text] { flex: 3; }
+.subgoal-row input[type=number] { flex: 1; }
+.subgoal-row button {
+  padding: 0 8px;
+  background: #e5e5e5;
+  color: #222;
+}
+.subgoal-row button:hover { background: #d4d4d4; }
+</style>
+</head>
+<body>
+<header>
+  <h2>🌱 Goal Garden 2.4 – Fejedelem Edition</h2>
+  <button id="addGoalBtn">+ Új cél</button>
+</header>
+<div id="app">
+  <div class="owner-tabs">
+    <button id="tabAll" class="active">🌍 Mind</button>
+    <button id="tabEduard">🧠 Eduard</button>
+    <button id="tabBoroka">💖 Boróka</button>
+  </div>
+
+  <div class="stats">
+    <div>🎯 Aktív célok: <b id="statActive">0</b></div>
+    <div>✅ Teljesítve: <b id="statPercent">0%</b></div>
+    <div>⭐ Pontjaid: <b id="statPoints">0</b></div>
+  </div>
+
+  <div id="goals"></div>
+
+  <form id="newGoalForm" style="display:none;">
+    <h3 id="formTitle">Új cél hozzáadása</h3>
+    <label>Cím:</label>
+    <input type="text" id="goalTitle">
+    <label>Leírás:</label>
+    <textarea id="goalDesc" placeholder="Ide írhatsz jegyzetet a célhoz..."></textarea>
+    <label>Kinek a célja:</label>
+    <select id="goalOwner">
+      <option value="Mindkettő">Mindkettő</option>
+      <option value="Eduard">Eduard</option>
+      <option value="Boróka">Boróka</option>
+    </select>
+
+    <h4>Alcélok és pontok</h4>
+    <div id="subgoalContainer"></div>
+    <button type="button" id="addSubgoalRow">➕ Új sor</button>
+
+    <button type="submit" style="margin-top:10px;">Mentés</button>
+  </form>
+
+  <h3>🎁 Jutalmak</h3>
+  <form id="rewardForm">
+    <label>Jutalom neve:</label>
+    <input type="text" id="rewardName">
+    <label>Pontköltség:</label>
+    <input type="number" id="rewardCost" value="10" min="1">
+    <button type="submit">+ Hozzáadás</button>
+  </form>
+  <div id="rewards"></div>
+
+  <div class="log">
+    <h4>📜 Napló</h4>
+    <div id="logEntries"></div>
+  </div>
+  <div style="margin-top:10px; text-align:right;">
+    <button id="clearLogBtn" style="background:#d33;">🧹 Napló törlése</button>
+  </div>
+</div>
+
+<script>
+let goals = JSON.parse(localStorage.getItem('goals_v5')||'[]');
+let rewards = JSON.parse(localStorage.getItem('rewards_v5')||'[]');
+let points = parseInt(localStorage.getItem('points_v5')||'0');
+let logs = JSON.parse(localStorage.getItem('logs_v5')||'[]');
+let editingGoal = null;
+let currentOwner='Mind';
+
+const app=document.getElementById('goals');
+const statActive=document.getElementById('statActive');
+const statPercent=document.getElementById('statPercent');
+const statPoints=document.getElementById('statPoints');
+const logEntries=document.getElementById('logEntries');
+const subContainer=document.getElementById('subgoalContainer');
+const addSubgoalRow=document.getElementById('addSubgoalRow');
+
+function saveAll(){
+  localStorage.setItem('goals_v5',JSON.stringify(goals));
+  localStorage.setItem('rewards_v5',JSON.stringify(rewards));
+  localStorage.setItem('points_v5',points);
+  localStorage.setItem('logs_v5',JSON.stringify(logs));
+}
+function addLog(txt){
+  logs.unshift({time:new Date().toLocaleString(),text:txt});
+  if(logs.length>100)logs.pop();
+  saveAll(); renderLog();
+}
+function renderLog(){
+  logEntries.innerHTML=logs.map(l=>`<div>🕓 ${l.time}: ${l.text}</div>`).join('');
+}
+function renderStats(){
+  const active=goals.filter(g=>!g.done).length;
+  const done=goals.filter(g=>g.done).length;
+  const total=goals.length||1;
+  statActive.textContent=active;
+  statPercent.textContent=Math.round((done/total)*100)+'%';
+  statPoints.textContent=points;
+}
+function colorByOwner(o){
+  if(o==='Eduard')return '#a7f3d0';
+  if(o==='Boróka')return '#fbcfe8';
+  return '#bfdbfe';
+}
+
+function renderGoals(){
+  app.innerHTML='';
+  const filtered=goals.filter(g=>currentOwner==='Mind'||g.owner===currentOwner);
+  filtered.forEach(g=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.style.borderLeft=`8px solid ${colorByOwner(g.owner)}`;
+    const doneCount=g.subtasks.filter(s=>s.done).length;
+    const prog=Math.round((doneCount/g.subtasks.length)*100);
+    card.innerHTML=`<div class='goal-owner'>${g.owner}</div>
+    <h3>${g.title}</h3><p>${g.desc||''}</p>`;
+    const subDiv=document.createElement('div');
+    g.subtasks.forEach((s)=>{
+      const row=document.createElement('div');
+      row.className='subtask';
+      const chk=document.createElement('input');
+      chk.type='checkbox';
+      chk.checked=s.done;
+      chk.onchange=()=>{
+        s.done=!s.done;
+        if(s.done){
+          if(s.points>0)points+=parseInt(s.points);
+          addLog(`✅ Alcél teljesítve: ${s.text} ${s.points>0?`(+${s.points} pont)`:""}`);
+        } else {
+          if(s.points>0)points-=parseInt(s.points);
+          addLog(`↩️ Alcél visszavonva: ${s.text} ${s.points>0?`(-${s.points} pont)`:""}`);
+        }
+        g.done=g.subtasks.every(x=>x.done);
+        saveAll();renderAll();
+      };
+      const span=document.createElement('span');
+      span.textContent=`${s.text}  (${s.points}p)`;
+      row.append(chk,span);
+      subDiv.append(row);
+    });
+    card.append(subDiv);
+    const pr=document.createElement('div');
+    pr.className='progress';
+    pr.innerHTML=`<div class='progress-inner' style='width:${prog}%;'></div>`;
+    card.append(pr);
+
+    const icons=document.createElement('div');
+    icons.className='icons';
+    const editBtn=document.createElement('button');editBtn.innerHTML='✏️';editBtn.onclick=()=>editGoal(g.id);
+    const delBtn=document.createElement('button');delBtn.innerHTML='🗑️';delBtn.onclick=()=>{if(confirm('Biztos törlöd?')){goals=goals.filter(x=>x.id!==g.id);saveAll();renderAll();}};
+    icons.append(editBtn,delBtn);
+    card.append(icons);
+    app.append(card);
+  });
+}
+
+function renderRewards(){
+  const container=document.getElementById('rewards');
+  container.innerHTML='';
+  rewards.forEach(r=>{
+    const div=document.createElement('div');
+    div.className='reward-card';
+    div.innerHTML=`<h4>${r.name}</h4><small>${r.cost} pont</small>`;
+    const btnWrap=document.createElement('div');
+    btnWrap.style.display='flex';
+    btnWrap.style.gap='8px';
+    const redeemBtn=document.createElement('button');
+    redeemBtn.textContent='🎁 Kiváltás';
+    redeemBtn.onclick=()=>{
+      if(points>=r.cost){
+        points-=r.cost;
+        addLog(`🎉 ${r.name} kiváltva (-${r.cost} pont)`);
+        saveAll();renderAll();
+      } else alert('Nincs elég pontod!');
+    };
+    const delBtn=document.createElement('button');
+    delBtn.textContent='🗑️';
+    delBtn.style.background='#ccc';
+    delBtn.style.color='#000';
+    delBtn.onclick=()=>{
+      if(confirm('Törlöd ezt a jutalmat?')){
+        rewards=rewards.filter(x=>x.id!==r.id);
+        addLog(`❌ Törölve: ${r.name}`);
+        saveAll();renderRewards();
+      }
+    };
+    btnWrap.append(redeemBtn, delBtn);
+    div.append(btnWrap);
+    container.append(div);
+  });
+}
+
+function renderAll(){renderGoals();renderStats();renderRewards();renderLog();}
+
+function createSubgoalRow(name='', pts='0', done=false){
+  const div=document.createElement('div');
+  div.className='subgoal-row';
+  div.innerHTML=`<input type='checkbox' ${done ? 'checked' : ''}>
+  <input type='text' placeholder='Alcél neve' value='${name}'>
+  <input type='number' min='0' placeholder='Pont' value='${pts}'>
+  <button type='button'>✖</button>`;
+  div.querySelector('button').onclick=()=>div.remove();
+  subContainer.append(div);
+}
+
+function initSubgoals(count=5){
+  subContainer.innerHTML='';
+  for(let i=0;i<count;i++)createSubgoalRow('', '0');
+}
+addSubgoalRow.onclick=()=>createSubgoalRow();
+
+document.getElementById('addGoalBtn').onclick=()=>{
+  editingGoal=null;
+  document.getElementById('formTitle').textContent='Új cél hozzáadása';
+  document.getElementById('newGoalForm').style.display='block';
+  initSubgoals();
+};
+
+document.getElementById('newGoalForm').onsubmit=e=>{
+  e.preventDefault();
+  const subs=[...subContainer.children].map((row,i)=>{
+    const name=row.querySelector('input[type=text]').value.trim();
+    const pts=row.querySelector('input[type=number]').value.trim();
+    const done=row.querySelector('input[type=checkbox]').checked;
+    const prevDone = editingGoal && editingGoal.subtasks[i] ? editingGoal.subtasks[i].done : done;
+    return name ? {text:name,points:parseInt(pts)||0,done:prevDone} : null;
+  }).filter(Boolean);
+
+  const g={
+    id: editingGoal?editingGoal.id:Date.now(),
+    title:goalTitle.value.trim(),
+    desc:goalDesc.value.trim(),
+    owner:goalOwner.value,
+    subtasks:subs,
+    done:subs.every(s=>s.done)
+  };
+
+  if(editingGoal){
+    const i=goals.findIndex(x=>x.id===editingGoal.id);
+    goals[i]=g;
+    addLog(`✏️ ${g.title} frissítve.`);
+  }else{
+    goals.unshift(g);
+    addLog(`➕ Új cél: ${g.title}`);
+  }
+
+  saveAll();
+  e.target.reset();
+  e.target.style.display='none';
+  editingGoal=null;
+  renderAll();
+};
+
+function editGoal(id){
+  const g=goals.find(x=>x.id===id);
+  if(!g)return;
+  editingGoal=g;
+  document.getElementById('formTitle').textContent='Cél szerkesztése';
+  goalTitle.value=g.title;
+  goalDesc.value=g.desc;
+  goalOwner.value=g.owner;
+  document.getElementById('newGoalForm').style.display='block';
+  subContainer.innerHTML='';
+  g.subtasks.forEach(s=>createSubgoalRow(s.text,s.points,s.done));
+  if(g.subtasks.length<5)
+    for(let i=g.subtasks.length;i<5;i++)
+      createSubgoalRow('', '0');
+}
+
+document.getElementById('rewardForm').onsubmit=e=>{
+  e.preventDefault();
+  const r={id:Date.now(),name:rewardName.value.trim(),cost:parseInt(rewardCost.value)};
+  if(!r.name)return;
+  rewards.push(r);
+  saveAll();
+  rewardName.value='';
+  rewardCost.value='10';
+  renderRewards();
+};
+
+document.getElementById('clearLogBtn').onclick=()=>{
+  if(confirm('Biztosan törölni akarod a naplót? A célok és pontok megmaradnak.')){
+    logs=[];
+    saveAll();
+    renderLog();
+    alert('📜 Napló törölve.');
+  }
+};
+
+document.getElementById('tabAll').onclick=()=>{currentOwner='Mind';setTab('tabAll');};
+document.getElementById('tabEduard').onclick=()=>{currentOwner='Eduard';setTab('tabEduard');};
+document.getElementById('tabBoroka').onclick=()=>{currentOwner='Boróka';setTab('tabBoroka');};
+function setTab(id){
+  ['tabAll','tabEduard','tabBoroka'].forEach(x=>document.getElementById(x).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  renderGoals();
+}
+
+renderAll();
+</script>
+</body>
+</html>
